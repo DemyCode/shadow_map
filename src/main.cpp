@@ -11,36 +11,6 @@
 #include "glutils/program.hh"
 #include "glutils/object.hh"
 
-//// renderQuad() renders a 1x1 XY quad in NDC
-//// -----------------------------------------
-//unsigned int quadVAO = 0;
-//unsigned int quadVBO;
-//void renderQuad()
-//{
-//    if (quadVAO == 0)
-//    {
-//        float quadVertices[] = {
-//                // positions        // texture Coords
-//                -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-//                -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-//                1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-//                1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-//        };
-//        // setup plane VAO
-//        glGenVertexArrays(1, &quadVAO);
-//        glGenBuffers(1, &quadVBO);
-//        glBindVertexArray(quadVAO);
-//        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-//        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-//        glEnableVertexAttribArray(0);
-//        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-//        glEnableVertexAttribArray(1);
-//        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-//    }
-//    glBindVertexArray(quadVAO);
-//    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-//    glBindVertexArray(0);
-//}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -348,7 +318,7 @@ int main()
     debug_program.use();
     glUniform1i(glGetUniformLocation(debug_program.id_, "depthMap"), 0);
 
-    glm::vec3 lightPos(-2.0f, 2.0f, -1.0f);
+    glm::vec3 lightPos(-2.0f, 10.0f, -1.0f);
     glfwSetCursorPosCallback(window, mouse_callback);
 
     while (!glfwWindowShouldClose(window))
@@ -364,9 +334,9 @@ int main()
         // Rendering de la depth MAP, repère orthogonale depuis la lamp puis enregistrement de la distance
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
-        float near_plane = 1.0f, far_plane = 7.5f;
+        float near_plane = 1.0f, far_plane = 10.0f;
         lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+        lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(1.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
         // Rendu de la scene
         shadow_program.use();
@@ -454,38 +424,42 @@ int main()
 
         // Optionnel c'est pour le débug mais ca rend tout de meme beau
 
-        debug_program.use();
-        glUniform1f(glGetUniformLocation(debug_program.id_, "near_plane"), near_plane);
-        glUniform1f(glGetUniformLocation(debug_program.id_, "far_plane"), far_plane);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, depthMap);
-        unsigned int quadVAO = 0;
-        unsigned int quadVBO;
+        bool debug = false;
+        if (debug)
         {
-            if (quadVAO == 0)
+            debug_program.use();
+            glUniform1f(glGetUniformLocation(debug_program.id_, "near_plane"), near_plane);
+            glUniform1f(glGetUniformLocation(debug_program.id_, "far_plane"), far_plane);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, depthMap);
+            unsigned int quadVAO = 0;
+            unsigned int quadVBO;
             {
-                // Presque du rendu RayMarching en dessinant sur le clip space directement
-                float quadVertices[] = {
-                        // positions        // texture Coords
-                        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
-                        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-                        1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
-                        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-                };
-                // Setup du plan
-                glGenVertexArrays(1, &quadVAO);
-                glGenBuffers(1, &quadVBO);
+                if (quadVAO == 0)
+                {
+                    // Presque du rendu RayMarching en dessinant sur le clip space directement
+                    float quadVertices[] = {
+                            // positions        // texture Coords
+                            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                            1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                            1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+                    };
+                    // Setup du plan
+                    glGenVertexArrays(1, &quadVAO);
+                    glGenBuffers(1, &quadVBO);
+                    glBindVertexArray(quadVAO);
+                    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+                    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+                    glEnableVertexAttribArray(0);
+                    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+                    glEnableVertexAttribArray(1);
+                    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+                }
                 glBindVertexArray(quadVAO);
-                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-                glEnableVertexAttribArray(0);
-                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-                glEnableVertexAttribArray(1);
-                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+                glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+                glBindVertexArray(0);
             }
-            glBindVertexArray(quadVAO);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-            glBindVertexArray(0);
         }
 
         // glfw
