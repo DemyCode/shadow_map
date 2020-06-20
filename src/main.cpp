@@ -309,13 +309,15 @@ int main()
             -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,0.0f, 1.0f, 1.0f
     };
 
+    glEnable(GL_DEPTH_TEST);
+
     Object object1 = Object(vertices_normal_blue, 9*6*6);
     Object object2 = Object(vertices_normal_red, 9*6*6);
     Object object3 = Object(vertices_normal_yellow, 9*6*6);
 
-    // configure depth map FBO
+    // Création du FBO pour stocker la shadow map
     // -----------------------
-    /*
+
     const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
     unsigned int depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
@@ -326,45 +328,47 @@ int main()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // attach depth texture as FBO's depth buffer
+    // Clampé pour qu'elle n'affiche rien là ou le repere existe pas
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float bordercolor[] = { 1.0, 1.0, 1.0, 1.0};
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, bordercolor);
+    // On attache le FBO à la depth map
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    */
+
     // shader configuration
     // --------------------
-    dummy_program.use();
-    // glUniform1i(glGetUniformLocation(program.id_, "shadowMap"), 1);
+    program.use();
+    glUniform1i(glGetUniformLocation(program.id_, "shadowMap"), 1);
 
-    //debug_program.use();
-    //glUniform1i(glGetUniformLocation(program.id_, "depthMap"), 0);
+    debug_program.use();
+    glUniform1i(glGetUniformLocation(debug_program.id_, "depthMap"), 0);
 
-    //glm::vec3 lightPos(-2.0f, 4.0f, -1.0f);
+    glm::vec3 lightPos(-2.0f, 2.0f, -1.0f);
+    glfwSetCursorPosCallback(window, mouse_callback);
 
     while (!glfwWindowShouldClose(window))
     {
-        // Inputs
+        // Mouvement de Caméra
         processInputs(window);
-        glfwSetCursorPosCallback(window, mouse_callback);
 
-        // Clearning
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        // Refresh d'écran
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
 
-/*
-        // FIRST RENDERING FOR LIGHT DEPTH
+
+        // Rendering de la depth MAP, repère orthogonale depuis la lamp puis enregistrement de la distance
         glm::mat4 lightProjection, lightView;
         glm::mat4 lightSpaceMatrix;
         float near_plane = 1.0f, far_plane = 7.5f;
         lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
         lightView = glm::lookAt(lightPos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
         lightSpaceMatrix = lightProjection * lightView;
-        // render scene from light's point of view
+        // Rendu de la scene
         shadow_program.use();
         glUniformMatrix4fv(glGetUniformLocation(shadow_program.id_, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
 
@@ -372,69 +376,117 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
         // DRAWING
-        drawing(shadow_program, object1, object2, object3);
+        // Tout les drawings se font bizzarrement parce que j'arretais pas de tout casser avec autre chose
+        {
+            // Transform
+            glm::mat4 model1 = glm::mat4(1.0f);
+            model1 = glm::translate(model1, glm::vec3(0.0f, 0.5f, 0.0f));
+            unsigned int modelLoc = glGetUniformLocation(shadow_program.id_, "model");
+            // pass them to the shaders (3 different ways)
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model1));
+            object1.render();
+
+            // Transform
+            glm::mat4 model2 = glm::mat4(1.0f);
+            model2 = glm::rotate(model2, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            model2 = glm::translate(model2, glm::vec3(5.0f, 1.0f, 3.0f));
+            unsigned int modelLoc2 = glGetUniformLocation(shadow_program.id_, "model");
+            glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, glm::value_ptr(model2));
+            object2.render();
+
+            // Transform
+            glm::mat4 model3 = glm::mat4(1.0f);
+            model3 = glm::translate(model3, glm::vec3(0.0, -50.0, 0.0));
+            model3 = glm::scale(model3, glm::vec3(100.0, 100.0, 100.0));
+            unsigned int modelLoc3 = glGetUniformLocation(shadow_program.id_, "model");
+            glUniformMatrix4fv(modelLoc3, 1, GL_FALSE, glm::value_ptr(model3));
+            object3.render();
+        }
         // End of Drawing
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-*/
-        // NORMAL RENDERING WITH THE USE OF DEPTHMAPFBO
+        // RENDERING CLASSIC + DEPTHMAPFBO passé en Uniform
         glViewport(0, 0, width, height);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        dummy_program.use();
+        program.use();
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 100.0f);
         glm::mat4 view  = camera.get_view();
-        unsigned int viewLoc  = glGetUniformLocation(dummy_program.id_, "view");
-        unsigned int projectionLoc  = glGetUniformLocation(dummy_program.id_, "projection");
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        // set light uniforms
-        // glUniform3f(glGetUniformLocation(program.id_, "viewPos"), camera.position_.x, camera.position_.y, camera.position_.z);
-        // glUniform3f(glGetUniformLocation(program.id_, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
-        // glUniformMatrix4fv(glGetUniformLocation(program.id_, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, depthMap);
-        // drawing(dummy_program, object1, object2, object3);
+        glUniformMatrix4fv(glGetUniformLocation(program.id_, "view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(glGetUniformLocation(program.id_, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        // Set des uniforms light
+        glUniform3f(glGetUniformLocation(program.id_, "viewPos"), camera.position_.x, camera.position_.y, camera.position_.z);
+        glUniform3f(glGetUniformLocation(program.id_, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+        glUniformMatrix4fv(glGetUniformLocation(program.id_, "lightSpaceMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceMatrix));
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        // DRAWING
+        {
+            // create transformations
+            glm::mat4 model1 = glm::mat4(1.0f);
+            model1 = glm::translate(model1, glm::vec3(0.0f, 0.5f, 0.0f));
+            // retrieve the matrix uniform locations
+            unsigned int modelLoc = glGetUniformLocation(program.id_, "model");
+            // pass them to the shaders (3 different ways)
+            glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model1));
+            object1.render();
 
-        // Drawing
+            // create transformations
+            glm::mat4 model2 = glm::mat4(1.0f);
+            model2 = glm::rotate(model2, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+            model2 = glm::translate(model2, glm::vec3(5.0f, 1.0f, 3.0f));
+            // retrieve the matrix uniform locations
+            unsigned int modelLoc2 = glGetUniformLocation(program.id_, "model");
+            // pass them to the shaders (3 different ways)
+            glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, glm::value_ptr(model2));
+            object2.render();
 
-        // create transformations
-        glm::mat4 model1 = glm::mat4(1.0f);
-        model1 = glm::translate(model1, glm::vec3(0.0f, 0.5f, 0.0f));
-        // retrieve the matrix uniform locations
-        unsigned int modelLoc = glGetUniformLocation(dummy_program.id_, "model");
-        // pass them to the shaders (3 different ways)
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model1));
-        object1.render();
+            // create transformations
+            glm::mat4 model3 = glm::mat4(1.0f);
+            model3 = glm::translate(model3, glm::vec3(0.0, -50.0, 0.0));
+            model3 = glm::scale(model3, glm::vec3(100.0, 100.0, 100.0));
+            // retrieve the matrix uniform locations
+            unsigned int modelLoc3 = glGetUniformLocation(program.id_, "model");
+            // pass them to the shaders (3 different ways)
+            glUniformMatrix4fv(modelLoc3, 1, GL_FALSE, glm::value_ptr(model3));
+            object3.render();
+        }
+        // End of Drawing
 
-        // create transformations
-        glm::mat4 model2 = glm::mat4(1.0f);
-        model2 = glm::rotate(model2, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        model2 = glm::translate(model2, glm::vec3(5.0f, 1.0f, 3.0f));
-        // retrieve the matrix uniform locations
-        unsigned int modelLoc2 = glGetUniformLocation(dummy_program.id_, "model");
-        // pass them to the shaders (3 different ways)
-        glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, glm::value_ptr(model2));
-        object2.render();
+        // Optionnel c'est pour le débug mais ca rend tout de meme beau
 
-        // create transformations
-        glm::mat4 model3 = glm::mat4(1.0f);
-        model3 = glm::translate(model3, glm::vec3(0.0, -50.0, 0.0));
-        model3 = glm::scale(model3, glm::vec3(100.0, 100.0, 100.0));
-        // retrieve the matrix uniform locations
-        unsigned int modelLoc3 = glGetUniformLocation(dummy_program.id_, "model");
-        // pass them to the shaders (3 different ways)
-        glUniformMatrix4fv(modelLoc3, 1, GL_FALSE, glm::value_ptr(model3));
-        object3.render();
-
-
-        // OPTIONNAL DRAWING FOR DEBUG
-//        debug_program.use();
-//        glUniform1f(glGetUniformLocation(program.id_, "near_plane"), near_plane);
-//        glUniform1f(glGetUniformLocation(program.id_, "far_plane"), far_plane);
-//        glActiveTexture(GL_TEXTURE0);
-//        glBindTexture(GL_TEXTURE_2D, depthMap);
-        // drawing(debug_program, object1, object2, object3);
-        // renderQuad();
+        debug_program.use();
+        glUniform1f(glGetUniformLocation(debug_program.id_, "near_plane"), near_plane);
+        glUniform1f(glGetUniformLocation(debug_program.id_, "far_plane"), far_plane);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        unsigned int quadVAO = 0;
+        unsigned int quadVBO;
+        {
+            if (quadVAO == 0)
+            {
+                // Presque du rendu RayMarching en dessinant sur le clip space directement
+                float quadVertices[] = {
+                        // positions        // texture Coords
+                        -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+                        -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+                        1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+                        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+                };
+                // Setup du plan
+                glGenVertexArrays(1, &quadVAO);
+                glGenBuffers(1, &quadVBO);
+                glBindVertexArray(quadVAO);
+                glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+                glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+                glEnableVertexAttribArray(0);
+                glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+                glEnableVertexAttribArray(1);
+                glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+            }
+            glBindVertexArray(quadVAO);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(0);
+        }
 
         // glfw
         glfwSwapBuffers(window);
