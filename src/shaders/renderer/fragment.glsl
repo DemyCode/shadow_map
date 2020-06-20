@@ -2,12 +2,10 @@
 
 out vec4 FragColor;
 
-in VS_OUT {
-    vec3 FragPos;
-    vec3 Normal;
-    vec3 OutColor;
-    vec4 FragPosLightSpace;
-} fs_in;
+in vec3 FragPos;
+in vec3 Normal;
+in vec3 OutColor;
+in vec4 FragPosLightSpace;
 
 uniform sampler2D shadowMap;
 
@@ -16,7 +14,7 @@ uniform vec3 viewPos;
 
 float ShadowCalc(float dotlightnormal)
 {
-    vec3 pos = fs_in.FragPosLightSpace.xyz * 0.5 + 0.5;
+    vec3 pos = FragPosLightSpace.xyz * 0.5 + 0.5;
     if (pos.z > 1.0)
     {
         pos.z = 1.0;
@@ -38,18 +36,18 @@ float ShadowCalc(float dotlightnormal)
 
 void main()
 {
-    vec3 color = fs_in.OutColor;
-    vec3 normal = normalize(fs_in.Normal);
+    vec3 color = OutColor;
+    vec3 normal = normalize(Normal);
     vec3 lightColor = vec3(0.3);
     // ambient
     vec3 ambient = 0.3 * color;
     // diffuse
-    vec3 lightDir = normalize(lightPos - fs_in.FragPos);
+    vec3 lightDir = normalize(lightPos - FragPos);
     float dotlightnormal = dot(lightDir, normal);
     float diff = max(dotlightnormal, 0.0);
     vec3 diffuse = diff * lightColor;
     // specular
-    vec3 viewDir = normalize(viewPos - fs_in.FragPos);
+    vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = 0.0;
     vec3 halfwayDir = normalize(lightDir + viewDir);

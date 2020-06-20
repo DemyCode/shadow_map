@@ -424,7 +424,7 @@ int main()
 
         // Optionnel c'est pour le débug mais ca rend tout de meme beau
 
-        bool debug = false;
+        bool debug = true;
         if (debug)
         {
             debug_program.use();
